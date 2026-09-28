@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceLine, R
 import type { AnalyticsView } from "@/lib/analytics";
 import { formatMoney } from "@/lib/finance";
 
-const colors = ["#248477", "#d68555", "#7289c3", "#ac74ac"];
+const colors = ["#0284c7", "#d68555", "#7289c3", "#ac74ac"];
 const progressValue = (current: string, target: string) => Math.min(100, Number(BigInt(current) * 10000n / BigInt(target)) / 100);
 const money = (v: string) => formatMoney(BigInt(v));
 const percent = (v: string | null) => v === null ? "—" : `${Number(v) / 100}%`;
