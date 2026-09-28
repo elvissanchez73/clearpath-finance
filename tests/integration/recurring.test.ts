@@ -41,6 +41,12 @@ afterAll(async () => {
   await db.$disconnect(); await owner.$disconnect();
 });
 describe("recurring posting", () => {
+  it("leaves overdue work available when a serverless deadline is exhausted", async () => {
+    await saveRecurring(a.user.id, input({ autoCreate: true }));
+    const stopped = await runAutomaticForOwner(a.user.id, new Date("2020-02-01"), Date.now() - 1);
+    expect(stopped).toEqual({ posted: 0, blocked: 0, batchLimitReached: true });
+    expect((await runAutomaticForOwner(a.user.id, new Date("2020-02-01"))).posted).toBe(1);
+  });
   it("keeps remind-only schedules out of automatic processing", async () => {
     await saveRecurring(a.user.id, input());
     expect((await runAutomaticForOwner(a.user.id, new Date("2020-03-01"))).posted).toBe(0);

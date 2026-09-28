@@ -6,3 +6,8 @@ coverage/
 *.tsbuildinfo
 .local/
 next-env.d.ts
+.neon
+.vercel/
+
+.vercel
+.env*

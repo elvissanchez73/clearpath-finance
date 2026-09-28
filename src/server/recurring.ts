@@ -87,11 +87,11 @@ export async function actOnRecurring(userId: string, id: string, input: unknown)
     return processOccurrence(tx, userId, schedule, todayInZone(settings.timezone), data.action === "skip");
   });
 }
-export async function runAutomaticForOwner(userId: string, now = new Date()) {
+export async function runAutomaticForOwner(userId: string, now = new Date(), deadline = Infinity) {
   let posted = 0, examined = 0;
   const blocked: string[] = [];
   // One occurrence per transaction keeps locks short and commits progress even if a later item is blocked.
-  while (examined < 100) {
+  while (examined < 100 && Date.now() < deadline) {
     const result = await withOwner(userId, async tx => {
       await lockOwner(tx, userId);
       const settings = await tx.userSettings.findUniqueOrThrow({ where: { userId } }), today = todayInZone(settings.timezone, now);
@@ -107,7 +107,7 @@ export async function runAutomaticForOwner(userId: string, now = new Date()) {
     if (!result) break;
     examined++; if (result.posted) posted++; if (result.blocked) blocked.push(result.id);
   }
-  return { posted, blocked: blocked.length, batchLimitReached: examined === 100 };
+  return { posted, blocked: blocked.length, batchLimitReached: examined === 100 || Date.now() >= deadline };
 }
 export async function runAutomaticBatch() {
   let cursor: string | undefined;

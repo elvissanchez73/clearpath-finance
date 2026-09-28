@@ -1,6 +1,6 @@
 # Deployment and recovery runbook
 
-The application has been built and tested locally. It has not been publicly deployed. Complete the release gates below before inviting users to a public service.
+The application is deployed at https://clearpath-finance-mu.vercel.app on Vercel with Neon PostgreSQL. See [VERCEL-NEON.md](VERCEL-NEON.md) for the deployed configuration and successful production HTTP checks. The browser, email recovery, backup and monitoring checks below remain operational follow-up work.
 
 ## Release gates still requiring infrastructure or browser access
 
