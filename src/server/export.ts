@@ -10,7 +10,7 @@ export async function exportWorkspace(userId: string, input: unknown) {
     if (filter.format === "csv") {
       const rows = await tx.transaction.findMany({ where: { userId, date: { ...(filter.from ? { gte: new Date(filter.from) } : {}), ...(filter.to ? { lte: new Date(filter.to) } : {}) } }, include: { account: true, destinationAccount: true, category: true, contribution: { include: { goal: true } } }, orderBy: [{ date: "asc" }, { id: "asc" }] });
       const cells = rows.map(t => [t.id, t.date.toISOString().slice(0, 10), t.type, decimalInput(t.amountMinor), "USD", t.description, t.account.name, t.destinationAccount?.name ?? "", t.category?.name ?? "", t.contribution?.goal.name ?? "", t.note ?? "", t.grossIncomeMinor === null ? "" : decimalInput(t.grossIncomeMinor), t.deductionsMinor === null ? "" : decimalInput(t.deductionsMinor)]);
-      return { filename: "clearpath-transactions.csv", type: "text/csv; charset=utf-8", content: csvDocument([["ID", "Date", "Type", "Amount", "Currency", "Description", "Source account", "Destination account", "Category", "Goal", "Notes", "Gross income", "Deductions"], ...cells]) };
+      return { filename: "ms-finances-transactions.csv", type: "text/csv; charset=utf-8", content: csvDocument([["ID", "Date", "Type", "Amount", "Currency", "Description", "Source account", "Destination account", "Category", "Goal", "Notes", "Gross income", "Deductions"], ...cells]) };
     }
     // Explicit allowlist: never export User passwords, sessions, reset tokens, or server configuration.
     const where = { userId };
@@ -24,6 +24,6 @@ export async function exportWorkspace(userId: string, input: unknown) {
       incomeSettings: await tx.incomeSettings.findUnique({ where: { userId } }), retirementSettings: await tx.retirementSettings.findUnique({ where: { userId } }), retirementContributions: await tx.retirementContribution.findMany({ where }),
       accountBalanceSnapshots: await tx.accountBalanceSnapshot.findMany({ where }),
     };
-    return { filename: "clearpath-workspace.json", type: "application/json; charset=utf-8", content: JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), currency: "USD", moneyEncoding: "Fields ending in Minor are integer strings in cents; percentage fields are integer basis points.", restoreSupported: false, data }, (_, value) => typeof value === "bigint" ? value.toString() : value, 2) };
+    return { filename: "ms-finances-workspace.json", type: "application/json; charset=utf-8", content: JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), currency: "USD", moneyEncoding: "Fields ending in Minor are integer strings in cents; percentage fields are integer basis points.", restoreSupported: false, data }, (_, value) => typeof value === "bigint" ? value.toString() : value, 2) };
   });
 }

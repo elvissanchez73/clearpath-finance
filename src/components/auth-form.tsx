@@ -28,5 +28,5 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     {mode === "register" ? <><p id="password-help" className="field-hint">Use at least 12 characters. A memorable phrase works well.</p><label>Confirm password<input type={show ? "text" : "password"} name="confirmPassword" autoComplete="new-password" minLength={12} maxLength={128} required/></label></> : <Link className="forgot-link" href="/forgot-password">Forgot your password?</Link>}
     {error && <p className="notice error" role="alert">{error}</p>}
     <button className="button primary wide" disabled={busy}>{busy ? <><LoaderCircle className="spin" size={18}/> Please wait…</> : <>{mode === "register" ? "Create your account" : "Sign in"}<ArrowRight size={18}/></>}</button>
-  </form><p className="auth-switch">{mode === "register" ? "Already have an account?" : "New to Clearpath?"} <Link href={mode === "register" ? "/login" : "/signup"}>{mode === "register" ? "Sign in" : "Create an account"}</Link></p></>;
+  </form><p className="auth-switch">{mode === "register" ? "Already have an account?" : "New to M&S Finances?"} <Link href={mode === "register" ? "/login" : "/signup"}>{mode === "register" ? "Sign in" : "Create an account"}</Link></p></>;
 }
