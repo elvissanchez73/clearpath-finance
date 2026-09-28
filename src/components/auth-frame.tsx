@@ -1,0 +1,6 @@
+import { ArrowUpRight, LockKeyhole, Target, Wallet } from "lucide-react";
+import { Brand } from "./brand";
+export function AuthFrame({ children }: { children: React.ReactNode }) {
+  return <main className="auth-layout"><section className="auth-story"><Brand/><div className="story-main"><span className="eyebrow light">YOUR MONEY. YOUR NEXT CHAPTER.</span><h1>A little clarity.<br/>A lot of possibility.</h1><p>Make room for everyday life and the things you&apos;re working toward.</p><div className="story-path"><div><Wallet/><span>Know where you stand</span></div><div><ChartIcon/><span>Give your money a plan</span></div><div><Target/><span>Move toward what matters</span></div></div></div><p className="privacy-line"><LockKeyhole size={16}/> A separate, private workspace for every account.</p></section><section className="auth-content"><div className="mobile-brand"><Brand/></div><div className="auth-card">{children}</div><p className="auth-footer">One step toward a clearer financial picture. <ArrowUpRight size={15}/></p></section></main>;
+}
+function ChartIcon() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 19h16M7 15V9m5 6V4m5 11v-4" strokeLinecap="round"/></svg>; }

@@ -1,0 +1,11 @@
+"use client";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { financialPreferences } from "@/lib/preferences";
+import { decimalInput } from "@/lib/ledger-validation";
+import { ErrorMessage, SaveButton } from "./ledger-ui";
+export function FinancialPreferences({ revision, income, savings, notifications }: { revision: string; income: string; savings: string; notifications: boolean }) {
+  const router = useRouter(), [busy, setBusy] = useState(false), [error, setError] = useState(""), [saved, setSaved] = useState(false);
+  async function submit(e: FormEvent<HTMLFormElement>) { e.preventDefault(); setError(""); setSaved(false); const form = new FormData(e.currentTarget); const parsed = financialPreferences.safeParse({ expectedRevision: revision, defaultIncome: form.get("income"), defaultSavings: form.get("savings"), notificationsEnabled: form.has("notifications") }); if (!parsed.success) { setError(parsed.error.issues[0].message); return; } setBusy(true); try { const r = await fetch("/api/preferences", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed.data) }); const data = await r.json(); if (!r.ok) throw new Error(data.error); setSaved(true); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Could not save preferences."); } finally { setBusy(false); } }
+  return <form className="settings-form" onSubmit={submit}><div className="field-grid"><label>Default monthly net income<input name="income" inputMode="decimal" defaultValue={decimalInput(income)} required/></label><label>Default monthly cash savings<input name="savings" inputMode="decimal" defaultValue={decimalInput(savings)} required/></label></div><p className="field-hint">Prefills new budget editors only. Existing budgets, salary assumptions, and the savings roadmap stay independent.</p><label className="checkbox-label"><input type="checkbox" name="notifications" defaultChecked={notifications}/>Show in-app reminders for due recurring items</label><p className="field-hint">Reminders appear on Overview while you are signed in. Email and push delivery are not available.</p><ErrorMessage message={error}/>{saved && <p className="notice success" role="status">Financial preferences saved.</p>}<div className="form-actions"><SaveButton busy={busy}/></div></form>;
+}

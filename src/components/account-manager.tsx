@@ -1,0 +1,28 @@
+"use client";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Wallet, Landmark, CreditCard } from "lucide-react";
+import { accountInput, accountTypes, decimalInput } from "@/lib/ledger-validation";
+import { formatMoney } from "@/lib/finance";
+import { typeLabel, type AccountView } from "@/lib/ledger-types";
+import { Modal, ErrorMessage, SaveButton, RecordActions, ledgerRequest } from "./ledger-ui";
+
+function AccountForm({ account, close }: { account: AccountView | null; close: () => void }) {
+  const router = useRouter(), [busy, setBusy] = useState(false), [error, setError] = useState("");
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError("");
+    const parsed = accountInput.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
+    if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
+    setBusy(true);
+    try { await ledgerRequest("accounts", account ? "PATCH" : "POST", parsed.data, account?.id); router.refresh(); close(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Couldn't save this account."); setBusy(false); }
+  }
+  return <Modal title={account ? "Edit account" : "Add an account"} subtitle="A simple, manual picture of your money." close={close} busy={busy}><form className="dialog-body" onSubmit={submit}><label>Account name<input name="name" defaultValue={account?.name} required maxLength={80} autoFocus placeholder="Everyday checking"/></label><div className="field-grid"><label>Account type<select name="type" defaultValue={account?.type || "CHECKING"}>{accountTypes.map(type => <option key={type} value={type}>{typeLabel[type]}</option>)}</select></label><label>Opening balance (USD)<input name="startingBalance" defaultValue={account ? decimalInput(account.startingBalanceMinor) : "0.00"} required inputMode="decimal" aria-describedby="opening-help"/></label></div><p className="field-hint" id="opening-help">Use the balance just before your first recorded transaction. Enter credit card debt as a negative amount. Editing this balance adjusts the calculated account balance.</p><label>Institution <span className="optional">Optional</span><input name="institution" defaultValue={account?.institution || ""} maxLength={100} placeholder="Bank or provider name"/></label><label>Description <span className="optional">Optional</span><textarea name="description" defaultValue={account?.description || ""} maxLength={500} rows={2}/></label><ErrorMessage message={error}/><div className="dialog-actions"><button type="button" className="button secondary" onClick={close} disabled={busy}>Cancel</button><SaveButton busy={busy}>{account ? "Save account" : "Add account"}</SaveButton></div></form></Modal>;
+}
+export function AccountManager({ accounts }: { accounts: AccountView[] }) {
+  const [editor, setEditor] = useState<AccountView | null | undefined>(), [showArchived, setShowArchived] = useState(false);
+  const visible = accounts.filter(account => showArchived || !account.archived);
+  const cash = accounts.filter(a => ["CHECKING", "SAVINGS", "HYSA", "CASH"].includes(a.type)).reduce((sum, a) => sum + BigInt(a.balanceMinor), 0n);
+  const net = accounts.reduce((sum, a) => sum + BigInt(a.balanceMinor), 0n);
+  return <><div className="page-heading"><div><span className="eyebrow">YOUR MONEY, IN ONE PLACE</span><h1>Accounts</h1><p className="muted">Keep a clear view of every balance.</p></div><button className="button primary" onClick={() => setEditor(null)}><Plus size={18}/>Add account</button></div><div className="account-totals"><div><span>Total cash</span><strong>{formatMoney(cash)}</strong><small>Checking, savings, HYSA, and cash</small></div><div><span>Net account balance</span><strong>{formatMoney(net)}</strong><small>All accounts, including debt and investments</small></div><p>Balances include archived accounts and are calculated from your opening balances and recorded transactions.</p></div><div className="list-toolbar"><span className="muted">{visible.length} {visible.length === 1 ? "account" : "accounts"}</span><label className="checkbox-label"><input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)}/>Show archived</label></div>{visible.length ? <div className="account-grid">{visible.map(account => <article key={account.id} className={`panel account-card ${account.archived ? "archived" : ""}`}><div className="account-card-top"><span className="feature-icon">{account.type === "CREDIT_CARD" ? <CreditCard/> : account.type === "CASH" ? <Wallet/> : <Landmark/>}</span><span className="account-type">{typeLabel[account.type]}{account.archived ? " · Archived" : ""}</span></div><h2>{account.name}</h2><p className="muted account-institution">{account.institution || "Manual account"}</p><p className="account-balance">{formatMoney(BigInt(account.balanceMinor))}</p>{account.description && <p className="muted account-description">{account.description}</p>}<RecordActions resource="accounts" id={account.id} name={account.name} archived={account.archived} edit={() => setEditor(account)}/></article>)}</div> : <section className="panel empty-state"><Wallet size={34}/><h2>{accounts.length ? "No active accounts" : "Start with your everyday account"}</h2><p className="muted">{accounts.length ? "Show archived accounts to restore one, or add a new account." : "Add your checking, savings, cash, or credit card balance. You can start recording transactions right after."}</p><button className="button primary" onClick={() => setEditor(null)}>Add your first account<Plus size={17}/></button></section>}{editor !== undefined && <AccountForm account={editor} close={() => setEditor(undefined)}/>}</>;
+}

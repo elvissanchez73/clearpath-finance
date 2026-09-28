@@ -1,0 +1,1 @@
+export default function Loading() { return <main className="page" role="status" aria-live="polite"><span className="sr-only">Loading your workspace…</span><div className="loading-line"/><div className="summary-grid">{[0, 1, 2, 3].map(i => <div key={i} className="loading-card"/>)}</div></main>; }

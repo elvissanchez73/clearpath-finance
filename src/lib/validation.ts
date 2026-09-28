@@ -1,0 +1,10 @@
+import { z } from "zod";
+export const email = z.string().trim().toLowerCase().email().max(254);
+export const password = z.string().min(12, "Use at least 12 characters.").max(128, "Use at most 128 characters.");
+export const registration = z.object({ name: z.string().trim().min(1).max(80), email, password, confirmPassword: z.string() }).strict().refine(v => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match." });
+export const login = z.object({ email, password: z.string().min(1).max(128) }).strict();
+export const changePassword = z.object({ currentPassword: z.string().min(1).max(128), password, confirmPassword: z.string() }).strict().refine(v => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match." });
+export const profile = z.object({ name: z.string().trim().min(1).max(80) }).strict();
+export const preferences = z.object({ theme: z.enum(["light", "dark", "system"]), timezone: z.string().max(80).refine(v => { try { new Intl.DateTimeFormat("en", { timeZone: v }); return true; } catch { return false; } }, "Choose a valid time zone.") }).strict();
+export const minorUnits = z.string().regex(/^(0|[1-9]\d{0,14})$/, "Enter a nonnegative integer number of cents.").transform(BigInt);
+export const recordId = z.string().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/);

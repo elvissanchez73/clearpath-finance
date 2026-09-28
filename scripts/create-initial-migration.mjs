@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const output = path.join(root, 'prisma/migrations/20260927000000_foundation');
+fs.mkdirSync(output, { recursive: true });
+const result = spawnSync(process.execPath, [path.join(root, 'node_modules/prisma/build/index.js'), 'migrate', 'diff', '--from-empty', '--to-schema-datamodel', 'prisma/schema.prisma', '--script'], { cwd: root, encoding: 'utf8' });
+if (result.status !== 0) throw new Error(result.stderr);
+fs.writeFileSync(path.join(output, 'migration.sql'), result.stdout + '\n' + fs.readFileSync(path.join(root, 'prisma/security.sql'), 'utf8'));
+fs.writeFileSync(path.join(root, 'prisma/migrations/migration_lock.toml'), 'provider = "postgresql"\n');
+console.log('Initial schema and security migration generated.');

@@ -1,0 +1,38 @@
+import { beforeAll, beforeEach, afterAll, describe, it, expect } from "vitest";
+import { PrismaClient } from "@prisma/client";
+import { NextRequest } from "next/server";
+import { register, cookieName } from "@/server/auth";
+import { db, withOwner } from "@/server/db";
+import { createAccount, createCategory, createTransaction, deleteLedgerRecord, updateTransaction } from "@/server/ledger";
+import { saveRecurring, actOnRecurring } from "@/server/recurring";
+import { saveBudget } from "@/server/budgets";
+import { saveGoal } from "@/server/goals";
+import { createRetirementContribution } from "@/server/income";
+import { calendarView } from "@/server/calendar";
+import { reviewView } from "@/server/review";
+import { GET as CALENDAR } from "@/app/api/calendar/route";
+import { GET as REVIEW } from "@/app/api/review/route";
+const owner = new PrismaClient({ datasourceUrl: process.env.TEST_DIRECT_URL });
+let a: Awaited<ReturnType<typeof register>>, b: Awaited<ReturnType<typeof register>>, account: string, savings: string, category: string;
+const add = (extra: Record<string, unknown> = {}) => createTransaction(a.user.id, { requestId: crypto.randomUUID(), date: "2020-02-15", type: "EXPENSE", amount: "10", description: "Review expense", accountId: account, categoryId: category, ...extra });
+const plan = () => saveRecurring(a.user.id, { name: "Rent", type: "EXPENSE", amount: "50", accountId: account, categoryId: category, frequency: "MONTHLY", nextDueDate: "2020-02-29", firstDay: 1, secondDay: 15, active: true, autoCreate: false, subscription: true });
+beforeAll(async () => {
+  const password = "calendar review private test password", suffix = crypto.randomUUID();
+  a = await register({ name: "Calendar A", email: `calendar-a-${suffix}@example.test`, password, confirmPassword: password });
+  b = await register({ name: "Calendar B", email: `calendar-b-${suffix}@example.test`, password, confirmPassword: password });
+  account = (await createAccount(a.user.id, { name: "Checking", type: "CHECKING", startingBalance: "1000" })).id;
+  savings = (await createAccount(a.user.id, { name: "Savings", type: "SAVINGS", startingBalance: "0" })).id;
+  category = (await createCategory(a.user.id, { name: "Housing", icon: "circle" })).id;
+});
+beforeEach(async () => { await withOwner(a.user.id, async tx => { await tx.transaction.deleteMany(); await tx.recurringTransaction.deleteMany(); await tx.savingsGoal.deleteMany(); await tx.monthlyBudget.deleteMany(); await tx.retirementContribution.deleteMany(); }); });
+afterAll(async () => { if (a && b) { const userId = { in: [a.user.id, b.user.id] }; await owner.transaction.deleteMany({ where: { userId } }); await owner.recurringTransaction.deleteMany({ where: { userId } }); await owner.savingsGoal.deleteMany({ where: { userId } }); await owner.monthlyBudget.deleteMany({ where: { userId } }); await owner.account.deleteMany({ where: { userId } }); await owner.user.deleteMany({ where: { id: userId } }); } await db.$disconnect(); await owner.$disconnect(); });
+describe("calendar and monthly review", () => {
+  it("keeps forecasts out of actuals and isolates other users", async () => { await plan(); await add(); const c = await calendarView(a.user.id, "2020-02"); expect(c.events.map(e => e.state).sort()).toEqual(["planned", "recorded"]); expect((await reviewView(a.user.id, "2020-02")).expenses).toBe("1000"); expect((await calendarView(b.user.id, "2020-02")).events).toEqual([]); expect((await reviewView(b.user.id, "2020-02")).expenses).toBe("0"); });
+  it("shows a posted occurrence once and marks deleted entries without recreating plans", async () => { const p = await plan(); await actOnRecurring(a.user.id, p.id, { action: "post", dueDate: "2020-02-29" }); const c = await calendarView(a.user.id, "2020-02"); expect(c.events).toHaveLength(1); expect(c.events[0].state).toBe("recorded"); await deleteLedgerRecord(a.user.id, "transactions", c.events[0].id); expect((await calendarView(a.user.id, "2020-02")).events[0].state).toBe("removed"); expect((await reviewView(a.user.id, "2020-02")).expenses).toBe("0"); });
+  it("retains skipped occurrences without counting them as expenses", async () => { const p = await plan(); await actOnRecurring(a.user.id, p.id, { action: "skip", dueDate: "2020-02-29" }); expect((await calendarView(a.user.id, "2020-02")).events[0].state).toBe("skipped"); expect((await reviewView(a.user.id, "2020-02")).expenses).toBe("0"); });
+  it("does not mislabel a moved generated entry as removed", async () => { const p = await plan(); await actOnRecurring(a.user.id, p.id, { action: "post", dueDate: "2020-02-29" }); const t = (await calendarView(a.user.id, "2020-02")).events[0]; await updateTransaction(a.user.id, t.id, { date: "2020-03-01" }); expect((await calendarView(a.user.id, "2020-02")).events).toEqual([]); expect((await calendarView(a.user.id, "2020-03")).events.some(e => e.state === "recorded" && e.date === "2020-03-01")).toBe(true); });
+  it("compares exact category actuals with saved budgets and the previous month", async () => { await add({ date: "2020-01-31", amount: "20" }); await add({ amount: "12.34" }); await add({ date: "2020-03-01", amount: "99" }); await saveBudget(a.user.id, "2020-02", { expectedRevision: null, income: "100", savings: "0", items: [{ categoryId: category, amount: "15", recurring: false }] }); const v = await reviewView(a.user.id, "2020-02"); expect(v).toMatchObject({ expenses: "1234", planned: "1500", underBudget: "266", rate: null, status: "complete" }); expect(v.categories[0]).toMatchObject({ previous: "2000", change: "-766", remaining: "266" }); });
+  it("distinguishes no budget from zero and includes uncategorized expense", async () => { await add({ categoryId: null }); expect((await reviewView(a.user.id, "2020-02")).underBudget).toBeNull(); await saveBudget(a.user.id, "2020-02", { expectedRevision: null, income: "0", savings: "0", items: [] }); const v = await reviewView(a.user.id, "2020-02"); expect(v.underBudget).toBe("-1000"); expect(v.categories[0].name).toBe("Uncategorized"); });
+  it("separates retirement and reconstructs goal progress only through the selected month", async () => { const g = await saveGoal(a.user.id, { name: "Reserve", target: "100", startingAmount: "10", monthlyContribution: "10", targetDate: null, accountId: savings, status: "ACTIVE", icon: "shield", notes: "" }); await add({ type: "INCOME", amount: "100" }); await add({ type: "SAVINGS_TRANSFER", amount: "20", categoryId: null, destinationAccountId: savings, goalId: g.id }); await add({ type: "SAVINGS_TRANSFER", amount: "30", date: "2020-03-01", categoryId: null, destinationAccountId: savings, goalId: g.id }); await createRetirementContribution(a.user.id, { date: "2020-02-29", employee: "5", employerMatch: "2", employerOther: "0", notes: "" }); const v = await reviewView(a.user.id, "2020-02"); expect(v).toMatchObject({ savings: "2000", rate: "2000", remaining: "8000", retirement: { employee: "500", match: "200", other: "0" } }); expect(v.goals[0].current).toBe("3000"); });
+  it("authenticates both APIs, rejects owner injection, and uses private responses", async () => { for (const handler of [CALENDAR, REVIEW]) { const req = (query: string, token = a.token) => new NextRequest(`${process.env.APP_ORIGIN}/api/calendar?${query}`, { headers: token ? { cookie: `${cookieName()}=${token}` } : {} }); expect((await handler(req("month=2020-02", ""))).status).toBe(401); expect((await handler(req("month=2020-02&userId=other"))).status).toBe(400); expect((await handler(req("month=2020-13"))).status).toBe(400); const response = await handler(req("month=2020-02")); expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("private, no-store"); } });
+});
