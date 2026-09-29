@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 import "./globals.css";
 import "./ledger.css";
+import "./dashboard.css";
 import "./budget.css";
 import "./goals.css";
 import "./recurring.css";
