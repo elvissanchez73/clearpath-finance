@@ -8,6 +8,7 @@ export const budgetInput = z.object({
   expectedRevision: z.iso.datetime().nullable(),
   income: amount,
   savings: amount,
+  savingsRecurring: z.boolean(),
   items: z.array(z.object({ categoryId: recordId, amount, recurring: z.boolean() }).strict()).max(200),
 }).strict().refine(v => new Set(v.items.map(i => i.categoryId)).size === v.items.length, { message: "Each category can appear only once.", path: ["items"] });
 export const copyBudgetInput = z.object({ sourceMonth: monthValue, recurringOnly: z.boolean() }).strict();
@@ -33,7 +34,7 @@ export type BudgetRow = { categoryId: string | null; name: string; icon: string;
 export type BudgetView = {
   month: string;
   defaults?: { incomeMinor: string; savingsMinor: string };
-  plan: { revision: string; incomeMinor: string; savingsMinor: string; items: { categoryId: string; amountMinor: string; recurring: boolean }[] } | null;
+  plan: { revision: string; incomeMinor: string; savingsMinor: string; savingsRecurring: boolean; items: { categoryId: string; amountMinor: string; recurring: boolean }[] } | null;
   categories: BudgetCategory[];
   rows: BudgetRow[];
   actual: { incomeMinor: string; expensesMinor: string; savingsMinor: string; remainingMinor: string };

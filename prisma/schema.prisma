@@ -40,23 +40,23 @@ enum Frequency {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  sessions     Session[]
-  resetTokens  PasswordResetToken[]
-  settings     UserSettings?
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
-  budgets      MonthlyBudget[]
-  goals        SavingsGoal[]
-  retirement   RetirementSettings?
-  recurring    RecurringTransaction[]
-  incomeSettings IncomeSettings?
+  id                      String                   @id @default(cuid())
+  name                    String
+  email                   String                   @unique
+  passwordHash            String
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  sessions                Session[]
+  resetTokens             PasswordResetToken[]
+  settings                UserSettings?
+  accounts                Account[]
+  categories              Category[]
+  transactions            Transaction[]
+  budgets                 MonthlyBudget[]
+  goals                   SavingsGoal[]
+  retirement              RetirementSettings?
+  recurring               RecurringTransaction[]
+  incomeSettings          IncomeSettings?
   retirementContributions RetirementContribution[]
 }
 
@@ -67,6 +67,7 @@ model Session {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([expiresAt])
 }
@@ -78,6 +79,7 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -88,67 +90,70 @@ model AuthRateLimit {
 }
 
 model UserSettings {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  currency             String   @default("USD") @db.VarChar(3)
-  theme                String   @default("system")
-  timezone             String   @default("UTC")
-  onboardingComplete   Boolean  @default(false)
-  onboardingStep       Int      @default(0)
-  defaultBudgetSavingsMinor BigInt @default(0)
-  notificationsEnabled Boolean  @default(false)
-  defaultIncomeMinor   BigInt   @default(0)
-  defaultSavingsMinor  BigInt   @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                        String   @id @default(cuid())
+  userId                    String   @unique
+  currency                  String   @default("USD") @db.VarChar(3)
+  theme                     String   @default("system")
+  timezone                  String   @default("UTC")
+  onboardingComplete        Boolean  @default(false)
+  onboardingStep            Int      @default(0)
+  defaultBudgetSavingsMinor BigInt   @default(0)
+  notificationsEnabled      Boolean  @default(false)
+  defaultIncomeMinor        BigInt   @default(0)
+  defaultSavingsMinor       BigInt   @default(0)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([id, userId])
 }
 
 model Account {
-  id                  String   @id @default(cuid())
-  userId              String
-  name                String
-  type                AccountType
-  currency            String   @default("USD") @db.VarChar(3)
-  startingBalanceMinor BigInt   @default(0)
-  institution         String?
-  description         String?
-  archived            Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  outgoing            Transaction[] @relation("TransactionSource")
-  incoming            Transaction[] @relation("TransactionDestination")
-  goals               SavingsGoal[]
-  recurring           RecurringTransaction[] @relation("RecurringSource")
-  recurringIncoming   RecurringTransaction[] @relation("RecurringDestination")
-  snapshots           AccountBalanceSnapshot[]
+  id                   String                   @id @default(cuid())
+  userId               String
+  name                 String
+  type                 AccountType
+  currency             String                   @default("USD") @db.VarChar(3)
+  startingBalanceMinor BigInt                   @default(0)
+  institution          String?
+  description          String?
+  archived             Boolean                  @default(false)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outgoing             Transaction[]            @relation("TransactionSource")
+  incoming             Transaction[]            @relation("TransactionDestination")
+  goals                SavingsGoal[]
+  recurring            RecurringTransaction[]   @relation("RecurringSource")
+  recurringIncoming    RecurringTransaction[]   @relation("RecurringDestination")
+  snapshots            AccountBalanceSnapshot[]
+
   @@unique([id, userId])
   @@index([userId, archived])
 }
 
 model Category {
-  id           String   @id @default(cuid())
+  id           String                 @id @default(cuid())
   userId       String
   name         String
-  icon         String   @default("circle")
-  archived     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  icon         String                 @default("circle")
+  archived     Boolean                @default(false)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgetItems  BudgetItem[]
   recurring    RecurringTransaction[]
+
   @@unique([id, userId])
   @@unique([userId, name])
 }
 
 model Transaction {
-  id                   String          @id @default(cuid())
-  clientRequestId      String?         @db.Uuid
+  id                   String                @id @default(cuid())
+  clientRequestId      String?               @db.Uuid
   userId               String
-  date                 DateTime        @db.Date
+  date                 DateTime              @db.Date
   description          String
   amountMinor          BigInt
   grossIncomeMinor     BigInt?
@@ -159,15 +164,16 @@ model Transaction {
   categoryId           String?
   note                 String?
   recurringId          String?
-  occurrenceDate       DateTime?       @db.Date
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account              Account         @relation("TransactionSource", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
-  destinationAccount   Account?        @relation("TransactionDestination", fields: [destinationAccountId, userId], references: [id, userId], onDelete: Restrict)
-  category             Category?       @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  occurrenceDate       DateTime?             @db.Date
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account              Account               @relation("TransactionSource", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
+  destinationAccount   Account?              @relation("TransactionDestination", fields: [destinationAccountId, userId], references: [id, userId], onDelete: Restrict)
+  category             Category?             @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
   recurring            RecurringTransaction? @relation(fields: [recurringId, userId], references: [id, userId], onDelete: Restrict)
   contribution         GoalContribution?
+
   @@unique([id, userId])
   @@unique([recurringId, occurrenceDate])
   @@unique([userId, clientRequestId])
@@ -177,54 +183,58 @@ model Transaction {
 }
 
 model MonthlyBudget {
-  id                 String   @id @default(cuid())
-  userId             String
-  month              DateTime @db.Date
-  plannedIncomeMinor BigInt   @default(0)
-  plannedSavingsMinor BigInt  @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items              BudgetItem[]
+  id                      String       @id @default(cuid())
+  userId                  String
+  month                   DateTime     @db.Date
+  plannedIncomeMinor      BigInt       @default(0)
+  plannedSavingsMinor     BigInt       @default(0)
+  plannedSavingsRecurring Boolean      @default(false)
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+  user                    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items                   BudgetItem[]
+
   @@unique([id, userId])
   @@unique([userId, month])
 }
 
 model BudgetItem {
-  id           String        @id @default(cuid())
-  userId       String
-  budgetId     String
-  categoryId   String
-  amountMinor  BigInt
-  recurring    Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  budget       MonthlyBudget @relation(fields: [budgetId, userId], references: [id, userId], onDelete: Cascade)
-  category     Category      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  id          String        @id @default(cuid())
+  userId      String
+  budgetId    String
+  categoryId  String
+  amountMinor BigInt
+  recurring   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  budget      MonthlyBudget @relation(fields: [budgetId, userId], references: [id, userId], onDelete: Cascade)
+  category    Category      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+
   @@unique([id, userId])
   @@unique([budgetId, categoryId])
   @@index([userId])
 }
 
 model SavingsGoal {
-  id                       String     @id @default(cuid())
+  id                       String                 @id @default(cuid())
   userId                   String
   name                     String
   targetMinor              BigInt?
-  startingAmountMinor      BigInt     @default(0)
-  plannedContributionMinor BigInt     @default(0)
-  targetDate               DateTime?  @db.Date
-  priority                 Int        @default(1)
-  icon                     String     @default("target")
+  startingAmountMinor      BigInt                 @default(0)
+  plannedContributionMinor BigInt                 @default(0)
+  targetDate               DateTime?              @db.Date
+  priority                 Int                    @default(1)
+  icon                     String                 @default("target")
   notes                    String?
   accountId                String?
-  status                   GoalStatus @default(ACTIVE)
-  createdAt                DateTime   @default(now())
-  updatedAt                DateTime   @updatedAt
-  user                     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account                  Account?   @relation(fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
+  status                   GoalStatus             @default(ACTIVE)
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  user                     User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account                  Account?               @relation(fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
   contributions            GoalContribution[]
   recurringPlans           RecurringTransaction[]
+
   @@unique([id, userId])
   @@index([userId, priority])
 }
@@ -238,98 +248,104 @@ model GoalContribution {
   createdAt     DateTime    @default(now())
   goal          SavingsGoal @relation(fields: [goalId, userId], references: [id, userId], onDelete: Restrict)
   transaction   Transaction @relation(fields: [transactionId, userId], references: [id, userId], onDelete: Cascade)
+
   @@unique([transactionId, userId])
   @@unique([id, userId])
   @@index([userId, goalId])
 }
 
 model RecurringTransaction {
-  id            String          @id @default(cuid())
-  userId        String
-  name          String
-  amountMinor   BigInt
-  type          TransactionType
-  accountId     String
+  id                   String                @id @default(cuid())
+  userId               String
+  name                 String
+  amountMinor          BigInt
+  type                 TransactionType
+  accountId            String
   destinationAccountId String?
-  goalId        String?
-  grossIncomeMinor BigInt?
-  deductionsMinor BigInt?
-  categoryId    String?
-  frequency     Frequency
-  nextDueDate   DateTime        @db.Date
-  anchorDay     Int             @default(1)
-  anchorMonth   Int             @default(1)
-  secondDay     Int?
-  lastError     String?
-  active        Boolean        @default(true)
-  autoCreate    Boolean        @default(false)
-  subscription  Boolean        @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account       Account         @relation("RecurringSource", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
-  destinationAccount Account?   @relation("RecurringDestination", fields: [destinationAccountId, userId], references: [id, userId], onDelete: Restrict)
-  goal          SavingsGoal?    @relation(fields: [goalId, userId], references: [id, userId], onDelete: Restrict)
-  category      Category?       @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
-  transactions  Transaction[]
-  occurrences   RecurringOccurrence[]
+  goalId               String?
+  grossIncomeMinor     BigInt?
+  deductionsMinor      BigInt?
+  categoryId           String?
+  frequency            Frequency
+  nextDueDate          DateTime              @db.Date
+  anchorDay            Int                   @default(1)
+  anchorMonth          Int                   @default(1)
+  secondDay            Int?
+  lastError            String?
+  active               Boolean               @default(true)
+  autoCreate           Boolean               @default(false)
+  subscription         Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account              Account               @relation("RecurringSource", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
+  destinationAccount   Account?              @relation("RecurringDestination", fields: [destinationAccountId, userId], references: [id, userId], onDelete: Restrict)
+  goal                 SavingsGoal?          @relation(fields: [goalId, userId], references: [id, userId], onDelete: Restrict)
+  category             Category?             @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  transactions         Transaction[]
+  occurrences          RecurringOccurrence[]
+
   @@unique([id, userId])
   @@index([userId, nextDueDate])
 }
 
 // Kept independently of the generated transaction so deleting a transaction never regenerates it.
 model RecurringOccurrence {
-  id String @id @default(cuid())
-  userId String
+  id          String               @id @default(cuid())
+  userId      String
   recurringId String
-  date DateTime @db.Date
-  skipped Boolean @default(false)
-  createdAt DateTime @default(now())
-  recurring RecurringTransaction @relation(fields: [recurringId, userId], references: [id, userId], onDelete: Cascade)
+  date        DateTime             @db.Date
+  skipped     Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  recurring   RecurringTransaction @relation(fields: [recurringId, userId], references: [id, userId], onDelete: Cascade)
+
   @@unique([recurringId, date])
   @@unique([id, userId])
   @@index([userId])
 }
 
 model IncomeSettings {
-  id String @id @default(cuid())
-  userId String @unique
-  annualSalaryMinor BigInt @default(0)
-  netPaycheckMinor BigInt @default(0)
-  payFrequency String @default("BIWEEKLY")
-  updatedAt DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  annualSalaryMinor BigInt   @default(0)
+  netPaycheckMinor  BigInt   @default(0)
+  payFrequency      String   @default("BIWEEKLY")
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([id, userId])
 }
 
 model RetirementContribution {
-  id String @id @default(cuid())
-  userId String
-  date DateTime @db.Date
-  employeeMinor BigInt
-  employerMatchMinor BigInt @default(0)
-  employerOtherMinor BigInt @default(0)
-  notes String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  clientRequestId String? @db.Uuid
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(cuid())
+  userId             String
+  date               DateTime @db.Date
+  employeeMinor      BigInt
+  employerMatchMinor BigInt   @default(0)
+  employerOtherMinor BigInt   @default(0)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now()) @updatedAt
+  clientRequestId    String?  @db.Uuid
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([id, userId])
-  @@index([userId, date])
   @@unique([userId, clientRequestId])
+  @@index([userId, date])
 }
 
 model RetirementSettings {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  annualSalaryMinor    BigInt   @default(0)
-  employeeBasisPoints  Int      @default(0)
-  employerMatchBasisPoints Int  @default(0)
-  employerContributionBasisPoints Int @default(0)
-  currentBalanceMinor  BigInt   @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                              String   @id @default(cuid())
+  userId                          String   @unique
+  annualSalaryMinor               BigInt   @default(0)
+  employeeBasisPoints             Int      @default(0)
+  employerMatchBasisPoints        Int      @default(0)
+  employerContributionBasisPoints Int      @default(0)
+  currentBalanceMinor             BigInt   @default(0)
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+  user                            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([id, userId])
 }
 
@@ -341,6 +357,7 @@ model AccountBalanceSnapshot {
   balanceMinor BigInt
   createdAt    DateTime @default(now())
   account      Account  @relation(fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
+
   @@unique([id, userId])
   @@unique([accountId, date])
   @@index([userId, date])

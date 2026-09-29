@@ -25,7 +25,7 @@ function BudgetEditor({ view, close }: { view: BudgetView; close: () => void }) 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError("");
     const form = new FormData(event.currentTarget);
-    const parsed = budgetInput.safeParse({ expectedRevision: view.plan?.revision ?? null, income, savings, items: categories.filter(c => amounts[c.id]?.trim()).map(c => ({ categoryId: c.id, amount: amounts[c.id].trim(), recurring: form.has(`recurring-${c.id}`) })) });
+    const parsed = budgetInput.safeParse({ expectedRevision: view.plan?.revision ?? null, income, savings, savingsRecurring: form.has("savingsRecurring"), items: categories.filter(c => amounts[c.id]?.trim()).map(c => ({ categoryId: c.id, amount: amounts[c.id].trim(), recurring: form.has(`recurring-${c.id}`) })) });
     if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
     setBusy(true);
     try { await send(view.month, parsed.data); router.refresh(); close(); }
@@ -34,6 +34,7 @@ function BudgetEditor({ view, close }: { view: BudgetView; close: () => void }) 
   return <Modal title={view.plan ? "Edit monthly budget" : "Plan your month"} subtitle={monthLabel(view.month)} close={close} busy={busy}>
     <form className="dialog-body budget-editor" onSubmit={submit}>
       <div className="field-grid"><label>Planned net income (USD)<input value={income} onChange={e => setIncome(e.target.value)} inputMode="decimal" required autoFocus/></label><label>Planned cash savings (USD)<input value={savings} onChange={e => setSavings(e.target.value)} inputMode="decimal" required/></label></div>
+      <label className="checkbox-label"><input name="savingsRecurring" type="checkbox" defaultChecked={view.plan?.savingsRecurring ?? false} aria-label="Repeat planned cash savings"/>Repeat planned cash savings next month</label>
       <p className="field-hint">Plan the take-home income you expect to receive. Savings is separate from spending allocations.</p>
       <div className="budget-editor-heading"><h3>Spending by category</h3><Link className="text-link" href="/categories" onClick={close}>Manage categories</Link></div>
       <p className="field-hint">Leave an amount blank to remove its allocation; zero is an explicit $0 limit. Mark Repeat to seed that allocation into next month when no next-month budget exists yet.</p>

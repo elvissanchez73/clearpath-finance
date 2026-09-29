@@ -1,0 +1,1 @@
+ALTER TABLE "MonthlyBudget" ADD COLUMN "plannedSavingsRecurring" BOOLEAN NOT NULL DEFAULT false;

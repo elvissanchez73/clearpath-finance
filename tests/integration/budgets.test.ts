@@ -13,7 +13,7 @@ const owner = new PrismaClient({ datasourceUrl: process.env.TEST_DIRECT_URL });
 let a: Awaited<ReturnType<typeof register>>, b: Awaited<ReturnType<typeof register>>;
 let checking: string, savings: string, food: string, rent: string, foreignCategory: string;
 const month = "2020-09";
-const draft = (extra: Record<string, unknown> = {}) => ({ expectedRevision: null, income: "1000", savings: "200", items: [{ categoryId: food, amount: "150", recurring: false }, { categoryId: rent, amount: "400", recurring: true }], ...extra });
+const draft = (extra: Record<string, unknown> = {}) => ({ expectedRevision: null, income: "1000", savings: "200", savingsRecurring: false, items: [{ categoryId: food, amount: "150", recurring: false }, { categoryId: rent, amount: "400", recurring: true }], ...extra });
 const entry = (extra: Record<string, unknown> = {}) => ({ requestId: crypto.randomUUID(), type: "EXPENSE", amount: "12.34", date: "2020-09-15", description: "Budget fixture", accountId: checking, categoryId: food, ...extra });
 const context = (selected = month) => ({ params: Promise.resolve({ month: selected }) });
 function request(method: string, input?: unknown, token: string | undefined = a.token, origin = process.env.APP_ORIGIN!) {
@@ -100,13 +100,19 @@ describe("monthly budgets on real PostgreSQL", () => {
     expect((await budgetView(a.user.id, month)).plan?.incomeMinor).toBe("100000");
     expect((await budgetView(a.user.id, month)).plan?.items).toHaveLength(2);
   });
-  it("seeds next month with repeating allocations while preserving planned income and savings", async () => {
+  it("seeds next month with repeating allocations without repeating savings by default", async () => {
     await saveBudget(a.user.id, month, draft());
     const copied = (await budgetView(a.user.id, "2020-10")).plan!;
     expect(copied.items).toEqual([{ categoryId: rent, amountMinor: "40000", recurring: true }]);
-    expect(copied.incomeMinor).toBe("100000"); expect(copied.savingsMinor).toBe("20000");
+    expect(copied.incomeMinor).toBe("100000"); expect(copied.savingsMinor).toBe("0"); expect(copied.savingsRecurring).toBe(false);
     await copyBudget(a.user.id, "2020-11", { sourceMonth: month, recurringOnly: true });
-    expect((await budgetView(a.user.id, "2020-11")).plan?.items).toEqual([{ categoryId: rent, amountMinor: "40000", recurring: true }]);
+    expect((await budgetView(a.user.id, "2020-11")).plan).toMatchObject({ savingsMinor: "0", items: [{ categoryId: rent, amountMinor: "40000", recurring: true }] });
+  });
+  it("repeats planned cash savings when selected", async () => {
+    await saveBudget(a.user.id, month, draft({ savingsRecurring: true, items: [{ categoryId: food, amount: "150", recurring: false }] }));
+    expect((await budgetView(a.user.id, month)).plan?.savingsRecurring).toBe(true);
+    const copied = (await budgetView(a.user.id, "2020-10")).plan!;
+    expect(copied).toMatchObject({ incomeMinor: "100000", savingsMinor: "20000", savingsRecurring: true, items: [] });
   });
   it("preserves archived history and skips archived categories in new plans", async () => {
     const nonRepeating = draft({ items: [{ categoryId: food, amount: "150", recurring: false }, { categoryId: rent, amount: "400", recurring: false }] });
