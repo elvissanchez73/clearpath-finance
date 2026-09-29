@@ -90,7 +90,8 @@ describe("monthly budgets on real PostgreSQL", () => {
     await expect(saveBudget(a.user.id, month, draft())).rejects.toMatchObject({ status: 409 });
   });
   it("copies a plan once without overwriting its source or copying transactions", async () => {
-    await saveBudget(a.user.id, month, draft()); await createTransaction(a.user.id, entry());
+    const nonRepeating = draft({ items: [{ categoryId: food, amount: "150", recurring: false }, { categoryId: rent, amount: "400", recurring: false }] });
+    await saveBudget(a.user.id, month, nonRepeating); await createTransaction(a.user.id, entry());
     const outcomes = await Promise.allSettled([copyBudget(a.user.id, "2020-10", { sourceMonth: month, recurringOnly: false }), copyBudget(a.user.id, "2020-10", { sourceMonth: month, recurringOnly: false })]);
     expect(outcomes.filter(r => r.status === "fulfilled")).toHaveLength(1);
     const copied = await budgetView(a.user.id, "2020-10");
@@ -99,18 +100,20 @@ describe("monthly budgets on real PostgreSQL", () => {
     expect((await budgetView(a.user.id, month)).plan?.incomeMinor).toBe("100000");
     expect((await budgetView(a.user.id, month)).plan?.items).toHaveLength(2);
   });
-  it("copies only repeating allocations when selected, while preserving planned income and savings", async () => {
+  it("seeds next month with repeating allocations while preserving planned income and savings", async () => {
     await saveBudget(a.user.id, month, draft());
-    await copyBudget(a.user.id, "2020-10", { sourceMonth: month, recurringOnly: true });
     const copied = (await budgetView(a.user.id, "2020-10")).plan!;
     expect(copied.items).toEqual([{ categoryId: rent, amountMinor: "40000", recurring: true }]);
     expect(copied.incomeMinor).toBe("100000"); expect(copied.savingsMinor).toBe("20000");
+    await copyBudget(a.user.id, "2020-11", { sourceMonth: month, recurringOnly: true });
+    expect((await budgetView(a.user.id, "2020-11")).plan?.items).toEqual([{ categoryId: rent, amountMinor: "40000", recurring: true }]);
   });
   it("preserves archived history and skips archived categories in new plans", async () => {
-    const saved = await saveBudget(a.user.id, month, draft());
+    const nonRepeating = draft({ items: [{ categoryId: food, amount: "150", recurring: false }, { categoryId: rent, amount: "400", recurring: false }] });
+    const saved = await saveBudget(a.user.id, month, nonRepeating);
     await updateCategory(a.user.id, food, { archived: true });
-    await saveBudget(a.user.id, month, draft({ expectedRevision: saved.revision }));
-    await expect(saveBudget(a.user.id, "2020-10", draft())).rejects.toMatchObject({ status: 409 });
+    await saveBudget(a.user.id, month, { ...nonRepeating, expectedRevision: saved.revision });
+    await expect(saveBudget(a.user.id, "2020-10", nonRepeating)).rejects.toMatchObject({ status: 409 });
     expect((await copyBudget(a.user.id, "2020-10", { sourceMonth: month, recurringOnly: false })).skippedArchived).toBe(1);
     expect((await budgetView(a.user.id, "2020-10")).plan?.items).toHaveLength(1);
     await expect(deleteLedgerRecord(a.user.id, "categories", food)).rejects.toMatchObject({ status: 409 });
@@ -151,7 +154,8 @@ describe("budget HTTP authorization boundary", () => {
     expect((await GET(request("GET"), context("invalid"))).status).toBe(400);
   });
   it("returns only the caller's budget and copies via the actual route handlers", async () => {
-    expect((await PUT(request("PUT", draft()), context())).status).toBe(200);
+    const nonRepeating = draft({ items: [{ categoryId: food, amount: "150", recurring: false }, { categoryId: rent, amount: "400", recurring: false }] });
+    expect((await PUT(request("PUT", nonRepeating), context())).status).toBe(200);
     const response = await GET(request("GET"), context());
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect((await response.json()).plan.incomeMinor).toBe("100000");

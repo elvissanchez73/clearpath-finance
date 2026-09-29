@@ -2,7 +2,7 @@ import "server-only";
 import { withOwner } from "./db";
 import { lockOwner } from "./owner-lock";
 import { ApiError } from "./errors";
-import { budgetInput, copyBudgetInput, monthBounds, budgetTotals, type BudgetView } from "@/lib/budget";
+import { budgetInput, copyBudgetInput, monthBounds, neighboringMonth, budgetTotals, type BudgetView } from "@/lib/budget";
 import { parseMoney, cashFlowTotals } from "@/lib/finance";
 
 export async function saveBudget(userId: string, month: string, input: unknown) {
@@ -21,6 +21,13 @@ export async function saveBudget(userId: string, month: string, input: unknown) 
       : await tx.monthlyBudget.create({ data: { userId, month: start, ...values } });
     await tx.budgetItem.deleteMany({ where: { userId, budgetId: plan.id } });
     if (data.items.length) await tx.budgetItem.createMany({ data: data.items.map(item => ({ userId, budgetId: plan.id, categoryId: item.categoryId, amountMinor: parseMoney(item.amount), recurring: item.recurring })) });
+    const nextMonth = neighboringMonth(month, 1);
+    const activeCategoryIds = new Set(categories.filter(category => !category.archived).map(category => category.id));
+    const repeatingItems = data.items.filter(item => item.recurring && activeCategoryIds.has(item.categoryId));
+    if (nextMonth && repeatingItems.length && !(await tx.monthlyBudget.count({ where: { userId, month: monthBounds(nextMonth).start } }))) {
+      const nextPlan = await tx.monthlyBudget.create({ data: { userId, month: monthBounds(nextMonth).start, plannedIncomeMinor: values.plannedIncomeMinor, plannedSavingsMinor: values.plannedSavingsMinor } });
+      await tx.budgetItem.createMany({ data: repeatingItems.map(item => ({ userId, budgetId: nextPlan.id, categoryId: item.categoryId, amountMinor: parseMoney(item.amount), recurring: true })) });
+    }
     return { revision: plan.updatedAt.toISOString() };
   });
 }
